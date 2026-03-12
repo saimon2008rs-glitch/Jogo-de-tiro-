@@ -4,10 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+ base:'/Jogo-de-tiro-/',
   plugins: [
     react(),
     tailwindcss(),
-  ],
+  ],  
   server: {
     port: 3000,
     host: '0.0.0.0',
