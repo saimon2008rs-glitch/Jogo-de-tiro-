@@ -1,17 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Target, Particle } from '../types';
+import React, { useEffect, useRef } from 'react';
 import { GAME_WIDTH, GAME_HEIGHT, TARGET_RADIUS, COLORS } from '../constants';
 
-interface GameCanvasProps {
-  onScoreUpdate: (points: number) => void;
-  onGameOver: () => void;
-  isActive: boolean;
-  level: number;
-  isSlowMo: boolean;
-  isDoublePoints: boolean;
-}
-
-const GameCanvas: React.FC<GameCanvasProps> = ({ 
+const GameCanvas = ({ 
   onScoreUpdate, 
   onGameOver, 
   isActive, 
@@ -19,11 +9,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
   isSlowMo,
   isDoublePoints
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const targetsRef = useRef<Target[]>([]);
-  const particlesRef = useRef<Particle[]>([]);
-  const requestRef = useRef<number>(null);
-  const lastSpawnRef = useRef<number>(0);
+  const canvasRef = useRef(null);
+  const targetsRef = useRef([]);
+  const particlesRef = useRef([]);
+  const requestRef = useRef(null);
+  const lastSpawnRef = useRef(0);
 
   const spawnTarget = () => {
     const side = Math.floor(Math.random() * 4);
@@ -53,7 +43,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
 
     const typeRand = Math.random();
-    let type: Target['type'] = 'normal';
+    let type = 'normal';
     let color = COLORS.target;
     let points = 10;
 
@@ -67,7 +57,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
       points = -20;
     }
 
-    const newTarget: Target = {
+    const newTarget = {
       id: Math.random().toString(36).substr(2, 9),
       x, y, vx, vy, radius: TARGET_RADIUS, points, type, color
     };
@@ -75,7 +65,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     targetsRef.current.push(newTarget);
   };
 
-  const createExplosion = (x: number, y: number, color: string) => {
+  const createExplosion = (x, y, color) => {
     for (let i = 0; i < 10; i++) {
       particlesRef.current.push({
         x,
@@ -88,7 +78,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     }
   };
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasClick = (e) => {
     if (!isActive) return;
 
     const canvas = canvasRef.current;
@@ -100,21 +90,19 @@ const GameCanvas: React.FC<GameCanvasProps> = ({
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
-    let hit = false;
     targetsRef.current = targetsRef.current.filter(target => {
       const dist = Math.sqrt((mouseX - target.x) ** 2 + (mouseY - target.y) ** 2);
       if (dist < target.radius) {
         const finalPoints = isDoublePoints ? target.points * 2 : target.points;
         onScoreUpdate(finalPoints);
         createExplosion(target.x, target.y, target.color);
-        hit = true;
         return false;
       }
       return true;
     });
   };
 
-  const update = (time: number) => {
+  const update = (time) => {
     if (!isActive) return;
 
     const canvas = canvasRef.current;

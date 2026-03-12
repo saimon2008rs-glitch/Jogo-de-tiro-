@@ -13,11 +13,10 @@ import {
   X
 } from 'lucide-react';
 import GameCanvas from './components/GameCanvas';
-import { GameState, ShopItem } from './types';
 import { INITIAL_TIME, COLORS, SHOP_ITEMS } from './constants';
 
 export default function App() {
-  const [state, setState] = useState<GameState>({
+  const [state, setState] = useState({
     score: 0,
     coins: parseInt(localStorage.getItem('coins') || '0'),
     timeLeft: INITIAL_TIME,
@@ -45,7 +44,7 @@ export default function App() {
     }));
   };
 
-  const handleScoreUpdate = useCallback((points: number) => {
+  const handleScoreUpdate = useCallback((points) => {
     setState(prev => {
       const newScore = Math.max(0, prev.score + points);
       const newLevel = Math.floor(newScore / 500) + 1;
@@ -77,7 +76,7 @@ export default function App() {
     });
   }, []);
 
-  const buyItem = (item: ShopItem) => {
+  const buyItem = (item) => {
     if (state.coins < item.price) return;
 
     setState(prev => {
@@ -106,7 +105,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    let timer: number;
+    let timer;
     if (state.isActive && state.timeLeft > 0) {
       timer = window.setInterval(() => {
         setState(prev => {
@@ -125,7 +124,7 @@ export default function App() {
   const isSlowMo = state.activePowerUps.slowmo > now;
   const isDouble = state.activePowerUps.double > now;
 
-  const getIcon = (iconName: string) => {
+  const getIcon = (iconName) => {
     switch(iconName) {
       case 'Clock': return <Clock className="w-6 h-6" />;
       case 'Timer': return <Timer className="w-6 h-6" />;
@@ -370,4 +369,3 @@ export default function App() {
     </div>
   );
 }
-

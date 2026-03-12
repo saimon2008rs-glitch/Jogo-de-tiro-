@@ -1,5 +1,3 @@
-import { ShopItem } from './types';
-
 export const GAME_WIDTH = 800;
 export const GAME_HEIGHT = 600;
 export const INITIAL_TIME = 30;
@@ -15,7 +13,7 @@ export const COLORS = {
   accent: '#38bdf8',
 };
 
-export const SHOP_ITEMS: ShopItem[] = [
+export const SHOP_ITEMS = [
   {
     id: 'slowmo',
     name: 'Slow Motion',
