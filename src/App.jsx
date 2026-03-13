@@ -247,7 +247,7 @@ export default function App() {
             <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Score</span>
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-yellow-500" />
-              <span className="text-2xl font-mono font-bold text-yellow-500">{state.score.toString().padStart(5, '0')}</span>
+              <span className="text-2xl font-mono font-bold text-yellow-500">{state.score}</span>
             </div>
           </div>
           <div className="flex flex-col">
@@ -281,7 +281,7 @@ export default function App() {
           </button>
           <div className="flex flex-col items-end">
             <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">High Score</span>
-            <span className="text-xl font-mono text-slate-400">{state.highScore.toString().padStart(5, '0')}</span>
+            <span className="text-xl font-mono text-slate-400">{state.highScore}</span>
           </div>
         </div>
       </div>
