@@ -10,12 +10,30 @@ import {
   Coins, 
   ShoppingBag, 
   Clock, 
-  X
+  X,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
 import GameCanvas from './components/GameCanvas';
+import Leaderboard from './components/Leaderboard';
 import { INITIAL_TIME, COLORS, SHOP_ITEMS } from './constants';
+import { auth, db, signInWithGoogle, logout } from './firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  setDoc, 
+  doc, 
+  serverTimestamp,
+  getDoc
+} from 'firebase/firestore';
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [state, setState] = useState({
     score: 0,
     coins: parseInt(localStorage.getItem('coins') || '0'),
@@ -61,7 +79,7 @@ export default function App() {
     });
   }, []);
 
-  const handleGameOver = useCallback(() => {
+  const handleGameOver = useCallback(async () => {
     setState(prev => {
       const isNewHighScore = prev.score > prev.highScore;
       if (isNewHighScore) {
@@ -74,7 +92,28 @@ export default function App() {
         highScore: isNewHighScore ? prev.score : prev.highScore,
       };
     });
-  }, []);
+
+    // Save to Firebase if logged in
+    if (auth.currentUser) {
+      try {
+        const scoreRef = doc(db, 'leaderboard', auth.currentUser.uid);
+        const scoreDoc = await getDoc(scoreRef);
+        
+        // Only update if it's a new personal best on the server too
+        if (!scoreDoc.exists() || state.score > scoreDoc.data().score) {
+          await setDoc(scoreRef, {
+            uid: auth.currentUser.uid,
+            displayName: auth.currentUser.displayName || 'Anonymous',
+            photoURL: auth.currentUser.photoURL,
+            score: state.score,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+      } catch (error) {
+        console.error("Error saving score:", error);
+      }
+    }
+  }, [state.score]);
 
   const buyItem = (item) => {
     if (state.coins < item.price) return;
@@ -103,6 +142,25 @@ export default function App() {
       };
     });
   };
+
+  useEffect(() => {
+    const unsubscribeAuth = auth.onAuthStateChanged((u) => {
+      setUser(u);
+    });
+
+    const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'), limit(10));
+    const unsubscribeLeaderboard = onSnapshot(q, (snapshot) => {
+      const scores = snapshot.docs.map(doc => doc.data());
+      setLeaderboard(scores);
+    }, (error) => {
+      console.error("Leaderboard error:", error);
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeLeaderboard();
+    };
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -135,8 +193,40 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col items-center justify-start p-4 overflow-y-auto">
+      {/* Top Bar / Auth */}
+      <div className="w-full max-w-6xl flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <TargetIcon className="w-6 h-6 text-red-500" />
+          <span className="font-black tracking-tighter uppercase italic text-xl">Target Shooter <span className="text-red-500">Pro</span></span>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {user ? (
+            <div className="flex items-center gap-3 bg-slate-900/50 p-1.5 pr-4 rounded-full border border-white/10">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName} className="w-8 h-8 rounded-full border border-white/10" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center"><User className="w-4 h-4" /></div>
+              )}
+              <span className="text-sm font-bold hidden sm:inline">{user.displayName}</span>
+              <button onClick={logout} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={signInWithGoogle}
+              className="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full font-bold text-sm hover:bg-slate-200 transition-all active:scale-95"
+            >
+              <LogIn className="w-4 h-4" />
+              Login to Save Score
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* HUD */}
-      <div className="w-full max-w-4xl flex justify-between items-center mb-6 bg-slate-900/50 p-4 rounded-2xl border border-white/10 backdrop-blur-sm mt-4">
+      <div className="w-full max-w-4xl flex justify-between items-center mb-6 bg-slate-900/50 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
         <div className="flex items-center gap-6">
           <div className="flex flex-col">
             <span className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Score</span>
@@ -207,75 +297,105 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {/* Game Area */}
-      <div className="relative group mb-8">
-        <GameCanvas 
-          isActive={state.isActive} 
-          onScoreUpdate={handleScoreUpdate} 
-          onGameOver={handleGameOver}
-          level={state.level}
-          isSlowMo={isSlowMo}
-          isDoublePoints={isDouble}
-        />
+      {/* Game and Leaderboard Grid */}
+      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        {/* Game Area */}
+        <div className="lg:col-span-2 relative group">
+          <GameCanvas 
+            isActive={state.isActive} 
+            onScoreUpdate={handleScoreUpdate} 
+            onGameOver={handleGameOver}
+            level={state.level}
+            isSlowMo={isSlowMo}
+            isDoublePoints={isDouble}
+          />
 
-        <AnimatePresence>
-          {!state.isActive && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md rounded-lg z-10"
-            >
-              {state.isGameOver ? (
-                <div className="text-center p-8">
-                  <motion.h2 
-                    initial={{ y: -20 }}
-                    animate={{ y: 0 }}
-                    className="text-6xl font-black mb-2 text-red-500 uppercase tracking-tighter"
-                  >
-                    Game Over
-                  </motion.h2>
-                  <p className="text-slate-400 mb-8 text-lg">Final Score: <span className="text-white font-bold">{state.score}</span></p>
-                  <div className="flex gap-4 justify-center">
-                    <button 
-                      onClick={startGame}
-                      className="group relative px-8 py-4 bg-white text-black font-bold rounded-full flex items-center gap-3 hover:bg-emerald-400 transition-all active:scale-95"
+          <AnimatePresence>
+            {!state.isActive && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.1 }}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md rounded-lg z-10"
+              >
+                {state.isGameOver ? (
+                  <div className="text-center p-8">
+                    <motion.h2 
+                      initial={{ y: -20 }}
+                      animate={{ y: 0 }}
+                      className="text-6xl font-black mb-2 text-red-500 uppercase tracking-tighter"
                     >
-                      <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
-                      Try Again
-                    </button>
-                    <button 
-                      onClick={() => setIsShopOpen(true)}
-                      className="px-8 py-4 bg-slate-800 text-white font-bold rounded-full flex items-center gap-3 hover:bg-slate-700 transition-all active:scale-95"
-                    >
-                      <ShoppingBag className="w-5 h-5" />
-                      Visit Shop
-                    </button>
+                      Game Over
+                    </motion.h2>
+                    <p className="text-slate-400 mb-8 text-lg">Final Score: <span className="text-white font-bold">{state.score}</span></p>
+                    <div className="flex gap-4 justify-center">
+                      <button 
+                        onClick={startGame}
+                        className="group relative px-8 py-4 bg-white text-black font-bold rounded-full flex items-center gap-3 hover:bg-emerald-400 transition-all active:scale-95"
+                      >
+                        <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                        Try Again
+                      </button>
+                      <button 
+                        onClick={() => setIsShopOpen(true)}
+                        className="px-8 py-4 bg-slate-800 text-white font-bold rounded-full flex items-center gap-3 hover:bg-slate-700 transition-all active:scale-95"
+                      >
+                        <ShoppingBag className="w-5 h-5" />
+                        Visit Shop
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center p-8">
-                  <TargetIcon className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" />
-                  <h1 className="text-7xl font-black mb-4 tracking-tighter uppercase italic">
-                    Target <span className="text-red-500">Shooter</span>
-                  </h1>
-                  <p className="text-slate-400 mb-12 max-w-md mx-auto">
-                    Test your reflexes. Hit targets to earn coins and buy power-ups in the shop!
-                  </p>
-                  <div className="flex gap-6 justify-center">
-                    <button 
-                      onClick={startGame}
-                      className="group relative px-12 py-6 bg-red-600 text-white font-black text-2xl rounded-2xl flex items-center gap-4 hover:bg-red-500 transition-all shadow-[0_0_40px_rgba(220,38,38,0.4)] active:scale-95"
-                    >
-                      <Play className="w-8 h-8 fill-current" />
-                      START MISSION
-                    </button>
+                ) : (
+                  <div className="text-center p-8">
+                    <TargetIcon className="w-24 h-24 text-red-500 mx-auto mb-6 animate-bounce" />
+                    <h1 className="text-7xl font-black mb-4 tracking-tighter uppercase italic">
+                      Target <span className="text-red-500">Shooter</span>
+                    </h1>
+                    <p className="text-slate-400 mb-12 max-w-md mx-auto">
+                      Test your reflexes. Hit targets to earn coins and buy power-ups in the shop!
+                    </p>
+                    <div className="flex gap-6 justify-center">
+                      <button 
+                        onClick={startGame}
+                        className="group relative px-12 py-6 bg-red-600 text-white font-black text-2xl rounded-2xl flex items-center gap-4 hover:bg-red-500 transition-all shadow-[0_0_40px_rgba(220,38,38,0.4)] active:scale-95"
+                      >
+                        <Play className="w-8 h-8 fill-current" />
+                        START MISSION
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Leaderboard Sidebar */}
+        <div className="flex flex-col gap-4">
+          <Leaderboard scores={leaderboard} currentUser={user} />
+          
+          <div className="bg-slate-900/30 p-6 rounded-2xl border border-white/5">
+            <h4 className="font-bold text-sm uppercase tracking-widest text-slate-500 mb-4">How to Play</h4>
+            <ul className="space-y-3 text-sm text-slate-400">
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                Click targets before they disappear
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Green targets give bonus points
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Avoid orange penalty targets
+              </li>
+              <li className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                Use coins in the shop for power-ups
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       {/* Shop Modal */}
