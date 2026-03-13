@@ -13,7 +13,10 @@ import {
   X,
   LogIn,
   LogOut,
-  User
+  User,
+  Shield,
+  Maximize,
+  Bot
 } from 'lucide-react';
 import GameCanvas from './components/GameCanvas';
 import Leaderboard from './components/Leaderboard';
@@ -45,6 +48,9 @@ export default function App() {
     activePowerUps: {
       slowmo: 0,
       double: 0,
+      shield: 0,
+      mega: 0,
+      bot: 0,
     },
   });
 
@@ -58,7 +64,7 @@ export default function App() {
       isActive: true,
       isGameOver: false,
       level: 1,
-      activePowerUps: { slowmo: 0, double: 0 }
+      activePowerUps: { slowmo: 0, double: 0, shield: 0, mega: 0, bot: 0 }
     }));
   };
 
@@ -132,6 +138,12 @@ export default function App() {
         newPowerUps.double = now + 10000;
       } else if (item.type === 'time') {
         newTimeLeft += 10;
+      } else if (item.type === 'shield') {
+        newPowerUps.shield = now + 15000;
+      } else if (item.type === 'mega') {
+        newPowerUps.mega = now + 10000;
+      } else if (item.type === 'bot') {
+        newPowerUps.bot = now + 5000;
       }
 
       return {
@@ -187,6 +199,9 @@ export default function App() {
       case 'Clock': return <Clock className="w-6 h-6" />;
       case 'Timer': return <Timer className="w-6 h-6" />;
       case 'Zap': return <Zap className="w-6 h-6" />;
+      case 'Shield': return <Shield className="w-6 h-6" />;
+      case 'Maximize': return <Maximize className="w-6 h-6" />;
+      case 'Bot': return <Bot className="w-6 h-6" />;
       default: return <ShoppingBag className="w-6 h-6" />;
     }
   };
@@ -294,6 +309,36 @@ export default function App() {
               <Zap className="w-3 h-3" /> 2X POINTS ACTIVE
             </motion.div>
           )}
+          {state.activePowerUps.shield > now && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/50 rounded-full flex items-center gap-2 text-xs text-emerald-400"
+            >
+              <Shield className="w-3 h-3" /> SHIELD ACTIVE
+            </motion.div>
+          )}
+          {state.activePowerUps.mega > now && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="px-3 py-1 bg-purple-500/20 border border-purple-500/50 rounded-full flex items-center gap-2 text-xs text-purple-400"
+            >
+              <Maximize className="w-3 h-3" /> MEGA TARGETS ACTIVE
+            </motion.div>
+          )}
+          {state.activePowerUps.bot > now && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="px-3 py-1 bg-red-500/20 border border-red-500/50 rounded-full flex items-center gap-2 text-xs text-red-400"
+            >
+              <Bot className="w-3 h-3" /> AUTO-BOT ACTIVE
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
@@ -308,6 +353,9 @@ export default function App() {
             level={state.level}
             isSlowMo={isSlowMo}
             isDoublePoints={isDouble}
+            isShield={state.activePowerUps.shield > now}
+            isMega={state.activePowerUps.mega > now}
+            isBot={state.activePowerUps.bot > now}
           />
 
           <AnimatePresence>

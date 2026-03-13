@@ -7,36 +7,41 @@ const GameCanvas = ({
   isActive, 
   level,
   isSlowMo,
-  isDoublePoints
+  isDoublePoints,
+  isShield,
+  isMega,
+  isBot
 }) => {
   const canvasRef = useRef(null);
   const targetsRef = useRef([]);
   const particlesRef = useRef([]);
   const requestRef = useRef(null);
   const lastSpawnRef = useRef(0);
+  const lastBotClickRef = useRef(0);
 
   const spawnTarget = () => {
     const side = Math.floor(Math.random() * 4);
     let x, y, vx, vy;
     const speed = 2 + level * 0.5;
+    const currentRadius = isMega ? TARGET_RADIUS * 2 : TARGET_RADIUS;
 
     if (side === 0) { // Top
       x = Math.random() * GAME_WIDTH;
-      y = -TARGET_RADIUS;
+      y = -currentRadius;
       vx = (Math.random() - 0.5) * speed;
       vy = Math.random() * speed + 1;
     } else if (side === 1) { // Right
-      x = GAME_WIDTH + TARGET_RADIUS;
+      x = GAME_WIDTH + currentRadius;
       y = Math.random() * GAME_HEIGHT;
       vx = -(Math.random() * speed + 1);
       vy = (Math.random() - 0.5) * speed;
     } else if (side === 2) { // Bottom
       x = Math.random() * GAME_WIDTH;
-      y = GAME_HEIGHT + TARGET_RADIUS;
+      y = GAME_HEIGHT + currentRadius;
       vx = (Math.random() - 0.5) * speed;
       vy = -(Math.random() * speed + 1);
     } else { // Left
-      x = -TARGET_RADIUS;
+      x = -currentRadius;
       y = Math.random() * GAME_HEIGHT;
       vx = Math.random() * speed + 1;
       vy = (Math.random() - 0.5) * speed;
@@ -54,12 +59,12 @@ const GameCanvas = ({
     } else if (typeRand > 0.8) {
       type = 'penalty';
       color = COLORS.penalty;
-      points = -20;
+      points = isShield ? 0 : -20;
     }
 
     const newTarget = {
       id: Math.random().toString(36).substr(2, 9),
-      x, y, vx, vy, radius: TARGET_RADIUS, points, type, color
+      x, y, vx, vy, radius: currentRadius, points, type, color
     };
 
     targetsRef.current.push(newTarget);
@@ -93,7 +98,10 @@ const GameCanvas = ({
     targetsRef.current = targetsRef.current.filter(target => {
       const dist = Math.sqrt((mouseX - target.x) ** 2 + (mouseY - target.y) ** 2);
       if (dist < target.radius) {
-        const finalPoints = isDoublePoints ? target.points * 2 : target.points;
+        let finalPoints = isDoublePoints ? target.points * 2 : target.points;
+        // If shield is active and it's a penalty, points are 0 (already handled in spawn but good to be safe)
+        if (isShield && target.type === 'penalty') finalPoints = 0;
+        
         onScoreUpdate(finalPoints);
         createExplosion(target.x, target.y, target.color);
         return false;
@@ -115,6 +123,20 @@ const GameCanvas = ({
       lastSpawnRef.current = time;
     }
 
+    // Bot logic
+    if (isBot && time - lastBotClickRef.current > 300) {
+      if (targetsRef.current.length > 0) {
+        const target = targetsRef.current[0];
+        if (target.type !== 'penalty') {
+          let finalPoints = isDoublePoints ? target.points * 2 : target.points;
+          onScoreUpdate(finalPoints);
+          createExplosion(target.x, target.y, target.color);
+          targetsRef.current.shift();
+          lastBotClickRef.current = time;
+        }
+      }
+    }
+
     // Clear
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -123,6 +145,13 @@ const GameCanvas = ({
     if (isSlowMo) {
       ctx.fillStyle = 'rgba(56, 189, 248, 0.1)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Shield effect overlay
+    if (isShield) {
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.3)';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(0, 0, canvas.width, canvas.height);
     }
 
     // Grid effect

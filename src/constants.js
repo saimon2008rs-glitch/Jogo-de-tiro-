@@ -37,5 +37,29 @@ export const SHOP_ITEMS = [
     price: 120,
     icon: 'Zap',
     type: 'double'
+  },
+  {
+    id: 'shield',
+    name: 'Shield',
+    description: 'Immune to penalty targets for 15s',
+    price: 150,
+    icon: 'Shield',
+    type: 'shield'
+  },
+  {
+    id: 'mega',
+    name: 'Mega Target',
+    description: 'Targets are 2x larger for 10s',
+    price: 200,
+    icon: 'Maximize',
+    type: 'mega'
+  },
+  {
+    id: 'bot',
+    name: 'Auto Bot',
+    description: 'Auto-hits targets for 5s',
+    price: 350,
+    icon: 'Bot',
+    type: 'bot'
   }
 ];
