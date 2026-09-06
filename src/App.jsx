@@ -7,7 +7,7 @@ import {
   Zap, 
   Clock, 
   X,
-  Menu,
+  ShoppingCart,
   Shield,
   Maximize,
   Bot,
@@ -316,17 +316,17 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Menu hambúrguer da página inicial */}
+      {/* Botão da loja na página inicial */}
       {state.isMenuOpen && (
         <motion.button
           type="button"
-          aria-label="Abrir menu"
+          aria-label="Abrir loja"
           aria-expanded={isMenuPanelOpen}
           onClick={() => setIsMenuPanelOpen(prev => !prev)}
           whileTap={{ scale: 0.92 }}
           className="fixed top-4 left-4 z-[90] flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition-colors hover:bg-purple-600/80"
         >
-          <Menu className="h-7 w-7" />
+          <ShoppingCart className="h-7 w-7" />
         </motion.button>
       )}
 
