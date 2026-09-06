@@ -8,6 +8,9 @@ import {
   Clock, 
   X,
   ShoppingCart,
+  Pause,
+  Play,
+  Home,
   Shield,
   Maximize,
   Bot,
@@ -26,6 +29,7 @@ export default function App() {
     coins: parseInt(localStorage.getItem('coins') || '0'),
     timeLeft: GAME_DURATION,
     isActive: false,
+    isPaused: false,
     isGameOver: false,
     isMenuOpen: true,
     currentPhase: 1,
@@ -67,11 +71,20 @@ export default function App() {
       lives: 3,
       timeLeft: GAME_DURATION, // Todas as fases têm a mesma duração definida em constants.js
       isActive: true,
+      isPaused: false,
       isGameOver: false,
       isMenuOpen: false,
       currentPhase: phaseNum,
       level: 1
     }));
+  };
+
+  const restartGame = () => startGame(state.currentPhase);
+
+  const returnToMenu = () => {
+    setControls({ left: false, right: false, fire: false });
+    setIsMenuPanelOpen(false);
+    setState(prev => ({ ...prev, isActive: false, isPaused: false, isGameOver: false, isMenuOpen: true }));
   };
 
   const buyPowerUp = (powerUp) => {
@@ -159,14 +172,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (state.isActive && (state.timeLeft <= 0 || state.lives <= 0)) {
+    if (state.isActive && !state.isPaused && (state.timeLeft <= 0 || state.lives <= 0)) {
       handleGameOver();
     }
   }, [state.isActive, state.timeLeft, state.lives, handleGameOver]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!state.isActive) return;
+      if (!state.isActive || state.isPaused) return;
       if (e.key === 'ArrowLeft') setControls(prev => ({ ...prev, left: true }));
       if (e.key === 'ArrowRight') setControls(prev => ({ ...prev, right: true }));
       if (e.key === ' ' || e.key === 'ArrowUp') setControls(prev => ({ ...prev, fire: true }));
@@ -185,11 +198,11 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [state.isActive]);
+  }, [state.isActive, state.isPaused]);
 
   useEffect(() => {
     let timer;
-    if (state.isActive && state.timeLeft > 0) {
+    if (state.isActive && !state.isPaused && state.timeLeft > 0) {
       timer = window.setInterval(() => {
         setState(prev => {
           return { ...prev, timeLeft: Math.max(0, prev.timeLeft - 1) };
@@ -197,7 +210,7 @@ export default function App() {
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [state.isActive]);
+  }, [state.isActive, state.isPaused]);
 
   const now = Date.now();
   const isSlowMo = state.activePowerUps.slowmo > now;
@@ -211,6 +224,16 @@ export default function App() {
       {/* HUD de Jogo em Tela Cheia */}
       {state.isActive && (
         <div className="absolute inset-0 z-10 pointer-events-none p-4 md:p-8 flex flex-col justify-between">
+        <div className="pointer-events-auto self-start">
+          <button
+            type="button"
+            aria-label={state.isPaused ? 'Continuar jogo' : 'Pausar jogo'}
+            onClick={() => setState(prev => ({ ...prev, isPaused: !prev.isPaused }))}
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-slate-950/80 text-white shadow-xl backdrop-blur-md transition-colors hover:bg-purple-600/80"
+          >
+            {state.isPaused ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
+          </button>
+        </div>
           {/* Top Bar - Barra de Nível e Stats */}
           <div className="w-full flex flex-col items-center gap-2">
             <div className="w-full max-w-2xl">
@@ -297,6 +320,31 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {state.isActive && state.isPaused && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/95 p-8 text-center shadow-2xl"
+            >
+              <Pause className="mx-auto mb-4 h-10 w-10 text-purple-400" />
+              <h2 className="mb-6 text-3xl font-black uppercase italic tracking-tight text-white">Jogo pausado</h2>
+              <div className="flex flex-col gap-3">
+                <button type="button" onClick={() => setState(prev => ({ ...prev, isPaused: false }))} className="rounded-xl bg-purple-600 px-5 py-3 font-black text-white transition-colors hover:bg-purple-500">Continuar</button>
+                <button type="button" onClick={restartGame} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-black text-white transition-colors hover:bg-white/20"><RotateCcw className="h-4 w-4" /> Recomeçar fase</button>
+                <button type="button" onClick={returnToMenu} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-black text-slate-300 transition-colors hover:bg-white/10"><Home className="h-4 w-4" /> Voltar ao menu</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Level Up Notification */}
       <AnimatePresence>
@@ -475,7 +523,7 @@ export default function App() {
           <GameCanvas 
             onScoreUpdate={handleScoreUpdate}
             onDamage={handleDamage}
-            isActive={state.isActive}
+            isActive={state.isActive && !state.isPaused}
             isSlowMo={isSlowMo}
             isDoublePoints={isDouble}
             isShield={isShield}
@@ -487,7 +535,7 @@ export default function App() {
         )}
 
         {/* Mobile Controls Overlay */}
-        {state.isActive && (
+        {state.isActive && !state.isPaused && (
           <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none p-6 md:p-12 flex justify-between items-end">
             <div className="flex gap-4 pointer-events-auto">
               <button 
