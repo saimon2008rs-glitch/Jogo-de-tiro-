@@ -157,7 +157,7 @@ const GameCanvas = ({
   const fireEnemyRetaliation = (target) => {
     const angleToShip = Math.atan2(shipRef.current.y - target.y, shipRef.current.x - target.x);
     const spread = Math.PI / 8;
-    for (let shot = -2; shot <= 2; shot++) {
+    for (let shot = -1; shot <= 1; shot++) {
       const angle = angleToShip + shot * spread;
       enemyBulletsRef.current.push({
         x: target.x,
